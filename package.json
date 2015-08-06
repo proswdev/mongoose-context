@@ -1,0 +1,26 @@
+{
+  "name": "mongoose-context",
+  "version": "0.0.1",
+  "description": "Mongoose plugin adding context to models",
+  "main": "index.js",
+  "scripts": {
+    "test": "/usr/lib/node_modules/mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/proswdev/mongoose-context.git"
+  },
+  "keywords": [],
+  "author": "Eric Vandewater <ericv@prosoftwaredev.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/proswdev/mongoose-context/issues"
+  },
+  "homepage": "https://github.com/proswdev/mongoose-context",
+  "dependencies": {},
+  "devDependencies": {
+    "async": "^1.4.0",
+    "mongoose": "^3.8.34",
+    "should": "^4.0.4"
+  }
+}
