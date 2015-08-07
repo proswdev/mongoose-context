@@ -21,10 +21,13 @@ function contextualize(target, context) {
         return target;
     }
 
-    var extTarget = function() {
-        var inst = target.apply(this, arguments);
-        return instantiate(inst, getContext);
-    };
+    var extTarget = target;
+    if (typeof target === 'function') {
+        extTarget = function() {
+            var inst = target.apply(this, arguments);
+            return instantiate(inst, getContext);
+        };
+    }
     extTarget.$getContext = getContext;
 
     var key;
@@ -39,10 +42,17 @@ function contextualize(target, context) {
                     extTarget[key] = overloadPromise(key);
                     break;
                 case 'model':
-                    extTarget[key] = function() {
-                        var model = target.model.apply(target, arguments);
-                        return contextualize(model, getContext);
-                    };
+                    if (target instanceof mongoose.Query) {
+                        extTarget.model = contextualize(target.model, getContext);
+                    } else {
+                        extTarget.model = function() {
+                            var __method = target.model;
+                            return function() {
+                                var model = __method.apply(target, arguments);
+                                return contextualize(model, getContext);
+                            };
+                        }();
+                    }
                     break;
                 case 'count':
                 case 'distinct':
@@ -111,22 +121,24 @@ function contextualize(target, context) {
                 case 'where':
                 case 'within':
                     extTarget[key] = function() {
-                        var __key = key;
+                        var __method = target[key];
                         return function() {
-                            return contextualize(target[__key].apply(target, arguments), getContext);
+                            return contextualize(__method.apply(target, arguments), getContext);
                         }
                     }();
                     break;
                 default:
-                    extTarget[key] = function() {
-                        var __key = key;
-                        return function() {
-                            return target[__key].apply(target, arguments);
-                        }
-                    }();
+                    if (extTarget !== target) {
+                        extTarget[key] = function() {
+                            var __method = target[key];
+                            return function() {
+                                return __method.apply(target, arguments);
+                            }
+                        }();
+                    }
                     break;
             }
-        } else {
+        } else if (extTarget !== target) {
             Object.defineProperty(extTarget, key, function() {
                 var __key = key;
                 return {
@@ -139,6 +151,7 @@ function contextualize(target, context) {
     return extTarget;
 
     function overloadPromise(method, callback) {
+        var __method = target[method];
         return function() {
             var i,cb,promise,args = [];
             for (i = 0; i < arguments.length; i++) {
@@ -163,12 +176,13 @@ function contextualize(target, context) {
                     __promise.resolve.apply(__promise, arguments);
                 };
             }());
-            target[method].apply(target, args);
+            __method.apply(target, args);
             return promise;
         }
     }
 
     function overloadQuery(method, callback) {
+        var __method = target[method];
         return function() {
             var i,cb,args = [];
             for (i = 0; i < arguments.length; i++) {
@@ -189,7 +203,7 @@ function contextualize(target, context) {
                     cb.apply(this, arguments);
                 });
             }
-            var query = target[method].apply(target, args);
+            var query = __method.apply(target, args);
             if (query instanceof mongoose.Query)
                 query = contextualize(query, getContext);
             return query;
