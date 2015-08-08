@@ -838,6 +838,27 @@ describe('mongoose-context', function() {
             ], done);
         });
 
+        it('should produce context instances using QueryStreams', function(done) {
+            async.waterfall([
+                function(next) {
+                    async.parallel([
+                        function(cb) { Book1.create(bookData, cb); },
+                        function(cb) { Book1.create(bookData, cb); },
+                        function(cb) { Book1.create(bookData, cb); },
+                        function(cb) { Book1.create(bookData, cb); }
+                    ], next);
+                },
+                function(results, next) {
+                    var stream = Book2.find().stream();
+                    stream.on('data', function(book) {
+                        book.should.have.property('$getContext');
+                        book.$getContext().should.match(context2);
+                    });
+                    stream.on('close', next);
+                }
+            ], done);
+        });
+
         after(function(done) {
             conn.close(done);
         });
