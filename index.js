@@ -38,7 +38,6 @@ function contextualize(target, context) {
                 case 'exec':
                 case 'geoNear':
                 case 'geoSearch':
-                case 'populate':
                     extTarget[key] = overloadPromise(key);
                     break;
                 case 'model':
@@ -53,6 +52,12 @@ function contextualize(target, context) {
                             };
                         }();
                     }
+                    break;
+                case 'populate':
+                    if (target instanceof mongoose.Query)
+                        extTarget.populate = overloadQuery(key);
+                    else
+                        extTarget.populate = overloadPromise(key);
                     break;
                 case 'count':
                 case 'distinct':
@@ -105,7 +110,6 @@ function contextualize(target, context) {
                 case 'nor':
                 case 'or':
                 case 'polygon':
-                case 'populate':
                 case 'read':
                 case 'regex':
                 case 'select':
@@ -166,7 +170,8 @@ function contextualize(target, context) {
             args.push(function() {
                 var __promise = promise;
                 return function() {
-                    this.$getContext = getContext;
+                    if (this)
+                        this.$getContext = getContext;
                     if (callback)
                         callback.apply(this, arguments);
                     else
@@ -195,7 +200,8 @@ function contextualize(target, context) {
             }
             if (cb) {
                 args.push(function() {
-                    this.$getContext = getContext;
+                    if (this)
+                        this.$getContext = getContext;
                     if (callback)
                         callback.apply(this, arguments);
                     else

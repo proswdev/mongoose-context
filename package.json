@@ -17,10 +17,12 @@
     "url": "https://github.com/proswdev/mongoose-context/issues"
   },
   "homepage": "https://github.com/proswdev/mongoose-context",
-  "dependencies": {},
+  "dependencies": {
+    "mongoose": ">=3.8.0 <4.2.0"
+  },
   "devDependencies": {
     "async": "^1.4.0",
-    "mongoose": "^3.8.34",
+    "semver": "^5.0.1",
     "should": "^4.0.4"
   }
 }
