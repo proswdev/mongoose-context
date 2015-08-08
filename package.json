@@ -1,7 +1,7 @@
 {
   "name": "mongoose-context",
   "version": "0.0.1",
-  "description": "Mongoose plugin adding context to models",
+  "description": "Attach contexts to Mongoose models and instances",
   "main": "index.js",
   "scripts": {
     "test": "/usr/lib/node_modules/mocha"
