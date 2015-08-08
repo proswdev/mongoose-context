@@ -7,6 +7,20 @@ require('../index');
 
 describe('mongoose-context', function() {
 
+    var bookSchema = mongoose.Schema({
+        content: String,
+        summary: String,
+        sales: Number,
+        profit: Number,
+        reviews: String,
+        remarks: String
+    });
+    var userSchema = mongoose.Schema({
+        username: String,
+        firstName: String,
+        lastName: String,
+        email: String
+    });
     var bookData = {
         content: 'Book content',
         summary: 'Book summary',
@@ -56,24 +70,8 @@ describe('mongoose-context', function() {
 
     describe('Using default connection', function() {
 
-        var bookSchema, userSchema;
-
         before(function(done){
             mongoose.connect('mongodb://localhost:27017/mongoose-context-test');
-            bookSchema = mongoose.Schema({
-                content: String,
-                summary: String,
-                sales: Number,
-                profit: Number,
-                reviews: String,
-                remarks: String
-            });
-            userSchema = mongoose.Schema({
-                username: String,
-                firstName: String,
-                lastName: String,
-                email: String
-            });
             done();
         });
 
@@ -111,24 +109,10 @@ describe('mongoose-context', function() {
 
     describe('Using custom connection', function() {
 
-        var conn, bookSchema, userSchema;
+        var conn;
 
         before(function(done){
             conn = mongoose.createConnection('mongodb://localhost:27017/mongoose-context-test');
-            bookSchema = mongoose.Schema({
-                content: String,
-                summary: String,
-                sales: Number,
-                profit: Number,
-                reviews: String,
-                remarks: String
-            });
-            userSchema = mongoose.Schema({
-                username: String,
-                firstName: String,
-                lastName: String,
-                email: String
-            });
             done();
         });
 
@@ -166,24 +150,10 @@ describe('mongoose-context', function() {
 
     describe('Model methods', function() {
 
-        var conn, bookSchema, userSchema, Book1, Book2, User3, User4;
+        var conn, Book1, Book2, User3, User4;
 
         before(function(done){
             conn = mongoose.createConnection('mongodb://localhost:27017/mongoose-context-test');
-            bookSchema = mongoose.Schema({
-                content: String,
-                summary: String,
-                sales: Number,
-                profit: Number,
-                reviews: String,
-                remarks: String
-            });
-            userSchema = mongoose.Schema({
-                username: String,
-                firstName: String,
-                lastName: String,
-                email: String
-            });
             Book1 = conn.contextModel(context1, 'Book', bookSchema);
             Book2 = conn.contextModel(context2, 'Book');
             User3 = conn.contextModel(context3, 'User', userSchema);
@@ -214,29 +184,26 @@ describe('mongoose-context', function() {
                         function(cb) { Book2.create(bookData, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User4.create(userData, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
                         function(cb) { Book2.count({content: bookData.content}).find({content: bookData.content}, cb) },
                         function(cb) { User4.count({firstName: userData.firstName}).find({firstName: userData.firstName}, cb) }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(2);
-                        var context =  [ context2, context4 ];
-                        var data = [ bookData, userData ];
-                        results.forEach(function(items,index) {
-                            items.forEach(function(item) {
-                                item.should.have.property('$getContext');
-                                item.$getContext().should.match(context[index]);
-                                item.toObject().should.match(data[index]);
-                            });
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(2);
+                    var context =  [ context2, context4 ];
+                    var data = [ bookData, userData ];
+                    results.forEach(function(items,index) {
+                        items.forEach(function(item) {
+                            item.should.have.property('$getContext');
+                            item.$getContext().should.match(context[index]);
+                            item.toObject().should.match(data[index]);
                         });
-                        next();
                     });
+                    next();
                 }
             ], done);
         });
@@ -264,14 +231,15 @@ describe('mongoose-context', function() {
 
         it('should produce context instances with Model.create() using promises', function(done) {
             var isDone = false;
-            function success(cb) { return function(result) { cb(null,result)} }
-            function end() { if (!isDone) { isDone = true; done(); } }
+            function ignore() { }
+            function success(cb) { return function(result) { cb(null,result); } }
+            function end(err) { if (!isDone) { isDone = true; done(err); } }
             async.parallel([
-                function(cb) { Book1.create(bookData).then(success(cb),cb).then(end,end); },
-                function(cb) { Book1.create(bookData2).then(success(cb),cb).then(end,end); },
-                function(cb) { Book2.create(bookData3).then(success(cb),cb).then(end,end); },
-                function(cb) { User3.create(userData).then(success(cb),cb).then(end,end); },
-                function(cb) { User4.create(userData2).then(success(cb),cb).then(end,end); }
+                function(cb) { Book1.create(bookData).then(success(cb),cb).then(ignore,end); },
+                function(cb) { Book1.create(bookData2).then(success(cb),cb).then(ignore,end); },
+                function(cb) { Book2.create(bookData3).then(success(cb),cb).then(ignore,end); },
+                function(cb) { User3.create(userData).then(success(cb),cb).then(ignore,end); },
+                function(cb) { User4.create(userData2).then(success(cb),cb).then(ignore,end); }
             ], function(err,results) {
                 should.not.exist(err);
                 results.length.should.equal(5);
@@ -294,29 +262,26 @@ describe('mongoose-context', function() {
                         function(cb) { Book2.create(bookData, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User4.create(userData, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
                         function(cb) { Book2.distinct('_id', {content: bookData.content}).find({content: bookData.content}, cb) },
                         function(cb) { User4.distinct('lastName', {firstName: userData.firstName}).find({firstName: userData.firstName}, cb) }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(2);
-                        var context =  [ context2, context4 ];
-                        var data = [ bookData, userData ];
-                        results.forEach(function(items,index) {
-                            items.forEach(function(item) {
-                                item.should.have.property('$getContext');
-                                item.$getContext().should.match(context[index]);
-                                item.toObject().should.match(data[index]);
-                            });
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(2);
+                    var context =  [ context2, context4 ];
+                    var data = [ bookData, userData ];
+                    results.forEach(function(items,index) {
+                        items.forEach(function(item) {
+                            item.should.have.property('$getContext');
+                            item.$getContext().should.match(context[index]);
+                            item.toObject().should.match(data[index]);
                         });
-                        next();
                     });
+                    next();
                 }
             ], done);
         });
@@ -329,31 +294,28 @@ describe('mongoose-context', function() {
                         function(cb) { Book1.create(bookData, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User3.create(userData, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
                         function(cb) { Book1.find({content: bookData.content}, cb); },
                         function(cb) { Book2.find({content: bookData.content}, cb); },
                         function(cb) { User3.find({firstName: userData.firstName}, cb); },
                         function(cb) { User4.find({firstName: userData.firstName}, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(4);
-                        var context =  [ context1, context2, context3, context4 ];
-                        var data = [ bookData, bookData, userData, userData ]
-                        results.forEach(function(items,index) {
-                            items.forEach(function(item) {
-                                item.should.have.property('$getContext');
-                                item.$getContext().should.match(context[index]);
-                                item.toObject().should.match(data[index]);
-                            });
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(4);
+                    var context =  [ context1, context2, context3, context4 ];
+                    var data = [ bookData, bookData, userData, userData ]
+                    results.forEach(function(items,index) {
+                        items.forEach(function(item) {
+                            item.should.have.property('$getContext');
+                            item.$getContext().should.match(context[index]);
+                            item.toObject().should.match(data[index]);
                         });
-                        next();
                     });
+                    next();
                 }
             ], done);
         });
@@ -366,36 +328,34 @@ describe('mongoose-context', function() {
                         function(cb) { Book1.create(bookData, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User3.create(userData, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
                         function(cb) { Book1.find({content: bookData.content}).exec(cb); },
                         function(cb) { Book2.find({content: bookData.content}).exec(cb); },
                         function(cb) { User3.find({firstName: userData.firstName}).exec(cb); },
                         function(cb) { User4.find({firstName: userData.firstName}).exec(cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(4);
-                        var context =  [ context1, context2, context3, context4 ];
-                        var data = [ bookData, bookData, userData, userData ]
-                        results.forEach(function(items,index) {
-                            items.forEach(function(item) {
-                                item.should.have.property('$getContext');
-                                item.$getContext().should.match(context[index]);
-                                item.toObject().should.match(data[index]);
-                            });
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(4);
+                    var context =  [ context1, context2, context3, context4 ];
+                    var data = [ bookData, bookData, userData, userData ]
+                    results.forEach(function(items,index) {
+                        items.forEach(function(item) {
+                            item.should.have.property('$getContext');
+                            item.$getContext().should.match(context[index]);
+                            item.toObject().should.match(data[index]);
                         });
-                        next();
                     });
+                    next();
                 }
             ], done);
         });
 
         it('should produce context instances with Model.find() using exec() and promises', function(done) {
+            var isDone = false;
             async.waterfall([
                 function(next) {
                     async.parallel([
@@ -403,40 +363,37 @@ describe('mongoose-context', function() {
                         function(cb) { Book1.create(bookData, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User3.create(userData, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
-                    var isDone = false;
-                    function success(cb) { return function(result) { cb(null,result)} }
-                    function end() { if (!isDone) { isDone = true; next(); } }
+                function(results, next) {
+                    function ignore() { }
+                    function success(cb) { return function(result) { cb(null,result); } }
+                    function end(err, results) { if (!isDone) { isDone = true; next(err, results); } }
                     async.parallel([
-                        function(cb) { Book1.find({content: bookData.content}).exec().then(success(cb),cb).then(end,end); },
-                        function(cb) { Book2.find({content: bookData.content}).exec().then(success(cb),cb).then(end,end); },
-                        function(cb) { User3.find({firstName: userData.firstName}).exec().then(success(cb),cb).then(end,end); },
-                        function(cb) { User4.find({firstName: userData.firstName}).exec().then(success(cb),cb).then(end,end); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(4);
-                        var context =  [ context1, context2, context3, context4 ];
-                        var data = [ bookData, bookData, userData, userData ]
-                        results.forEach(function(items,index) {
-                            items.forEach(function(item) {
-                                item.should.have.property('$getContext');
-                                item.$getContext().should.match(context[index]);
-                                item.toObject().should.match(data[index]);
-                            });
+                        function(cb) { Book1.find({content: bookData.content}).exec().then(success(cb),cb).then(ignore,end); },
+                        function(cb) { Book2.find({content: bookData.content}).exec().then(success(cb),cb).then(ignore,end); },
+                        function(cb) { User3.find({firstName: userData.firstName}).exec().then(success(cb),cb).then(ignore,end); },
+                        function(cb) { User4.find({firstName: userData.firstName}).exec().then(success(cb),cb).then(ignore,end); }
+                    ], end);
+                },
+                function(results, next) {
+                    isDone = false;
+                    results.length.should.equal(4);
+                    var context =  [ context1, context2, context3, context4 ];
+                    var data = [ bookData, bookData, userData, userData ]
+                    results.forEach(function(items,index) {
+                        items.forEach(function(item) {
+                            item.should.have.property('$getContext');
+                            item.$getContext().should.match(context[index]);
+                            item.toObject().should.match(data[index]);
                         });
-                        next();
                     });
+                    next();
                 }
             ], done);
         });
 
         it('should produce context instances with Model.findById() using calllbacks', function(done) {
-            var items;
             async.waterfall([
                 function(next) {
                     async.parallel([
@@ -444,36 +401,31 @@ describe('mongoose-context', function() {
                         function(cb) { Book1.create(bookData, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User3.create(userData, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        items = results;
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
-                        function(cb) { Book1.findById(items[0]._id, cb); },
-                        function(cb) { Book2.findById(items[1]._id, cb); },
-                        function(cb) { User3.findById(items[2]._id, cb); },
-                        function(cb) { User4.findById(items[3]._id, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(4);
-                        var context =  [ context1, context2, context3, context4 ];
-                        var data = [ bookData, bookData, userData, userData ];
-                        results.forEach(function(item,index) {
-                            item.should.have.property('$getContext');
-                            item.$getContext().should.match(context[index]);
-                            item.toObject().should.match(data[index]);
-                        });
-                        next();
+                        function(cb) { Book1.findById(results[0]._id, cb); },
+                        function(cb) { Book2.findById(results[1]._id, cb); },
+                        function(cb) { User3.findById(results[2]._id, cb); },
+                        function(cb) { User4.findById(results[3]._id, cb); }
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(4);
+                    var context =  [ context1, context2, context3, context4 ];
+                    var data = [ bookData, bookData, userData, userData ];
+                    results.forEach(function(item,index) {
+                        item.should.have.property('$getContext');
+                        item.$getContext().should.match(context[index]);
+                        item.toObject().should.match(data[index]);
                     });
+                    next();
                 }
             ], done);
         });
 
         it('should produce context instances with Model.findByIdAndRemove()', function(done) {
-            var items;
             async.waterfall([
                 function(next) {
                     async.parallel([
@@ -481,36 +433,31 @@ describe('mongoose-context', function() {
                         function(cb) { Book2.create(bookData2, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User4.create(userData2, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        items = results;
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
-                        function(cb) { Book1.findByIdAndRemove(items[0]._id, cb); },
-                        function(cb) { Book2.findByIdAndRemove(items[1]._id, cb); },
-                        function(cb) { User3.findByIdAndRemove(items[2]._id, cb); },
-                        function(cb) { User4.findByIdAndRemove(items[3]._id, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(4);
-                        var context =  [ context1, context2, context3, context4 ];
-                        var data = [ bookData, bookData2, userData, userData2 ];
-                        results.forEach(function(item,index) {
-                            item.should.have.property('$getContext');
-                            item.$getContext().should.match(context[index]);
-                            item.toObject().should.match(data[index]);
-                        });
-                        next();
+                        function(cb) { Book1.findByIdAndRemove(results[0]._id, cb); },
+                        function(cb) { Book2.findByIdAndRemove(results[1]._id, cb); },
+                        function(cb) { User3.findByIdAndRemove(results[2]._id, cb); },
+                        function(cb) { User4.findByIdAndRemove(results[3]._id, cb); }
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(4);
+                    var context =  [ context1, context2, context3, context4 ];
+                    var data = [ bookData, bookData2, userData, userData2 ];
+                    results.forEach(function(item,index) {
+                        item.should.have.property('$getContext');
+                        item.$getContext().should.match(context[index]);
+                        item.toObject().should.match(data[index]);
                     });
+                    next();
                 }
             ], done);
         });
 
         it('should produce context instances with Model.findByIdAndUpdate()', function(done) {
-            var items;
             async.waterfall([
                 function(next) {
                     async.parallel([
@@ -518,36 +465,31 @@ describe('mongoose-context', function() {
                         function(cb) { Book2.create(bookData2, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User4.create(userData2, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        items = results;
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
-                        function(cb) { Book1.findByIdAndUpdate(items[0]._id, bookData3, { new: true }, cb); },
-                        function(cb) { Book2.findByIdAndUpdate(items[1]._id, bookData3, { new: false }, cb); },
-                        function(cb) { User3.findByIdAndUpdate(items[2]._id, userData3, { new: true }, cb); },
-                        function(cb) { User4.findByIdAndUpdate(items[3]._id, userData3, { new: false }, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(4);
-                        var context =  [ context1, context2, context3, context4 ];
-                        var data = [ bookData3, bookData2, userData3, userData2 ];
-                        results.forEach(function(item,index) {
-                            item.should.have.property('$getContext');
-                            item.$getContext().should.match(context[index]);
-                            item.toObject().should.match(data[index]);
-                        });
-                        next();
+                        function(cb) { Book1.findByIdAndUpdate(results[0]._id, bookData3, { new: true }, cb); },
+                        function(cb) { Book2.findByIdAndUpdate(results[1]._id, bookData3, { new: false }, cb); },
+                        function(cb) { User3.findByIdAndUpdate(results[2]._id, userData3, { new: true }, cb); },
+                        function(cb) { User4.findByIdAndUpdate(results[3]._id, userData3, { new: false }, cb); }
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(4);
+                    var context =  [ context1, context2, context3, context4 ];
+                    var data = [ bookData3, bookData2, userData3, userData2 ];
+                    results.forEach(function(item,index) {
+                        item.should.have.property('$getContext');
+                        item.$getContext().should.match(context[index]);
+                        item.toObject().should.match(data[index]);
                     });
+                    next();
                 }
             ], done);
         });
 
         it('should produce context instances with Model.findOne() using calllback', function(done) {
-            var items;
             async.waterfall([
                 function(next) {
                     async.parallel([
@@ -555,35 +497,30 @@ describe('mongoose-context', function() {
                         function(cb) { Book2.create(bookData2, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User4.create(userData2, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        items = results;
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
-                        function(cb) { Book1.findOne({_id: items[0]._id}, cb); },
-                        function(cb) { Book2.findOne({_id: items[1]._id}, cb); },
-                        function(cb) { User3.findOne({_id: items[2]._id}, cb); },
-                        function(cb) { User4.findOne({_id: items[3]._id}, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(4);
-                        var context =  [ context1, context2, context3, context4 ];
-                        results.forEach(function(item,index) {
-                            item.should.have.property('$getContext');
-                            item.$getContext().should.match(context[index]);
-                            item.toObject().should.match(items[index].toObject());
-                        });
-                        next();
+                        function(cb) { Book1.findOne({_id: results[0]._id}, cb); },
+                        function(cb) { Book2.findOne({_id: results[1]._id}, cb); },
+                        function(cb) { User3.findOne({_id: results[2]._id}, cb); },
+                        function(cb) { User4.findOne({_id: results[3]._id}, cb); }
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(4);
+                    var context =  [ context1, context2, context3, context4 ];
+                    results.forEach(function(item,index) {
+                        item.should.have.property('$getContext');
+                        item.$getContext().should.match(context[index]);
+                        item.toObject().should.match(results[index].toObject());
                     });
+                    next();
                 }
             ], done);
         });
 
         it('should produce context instances with Model.findOne() using exec() and callbacks', function(done) {
-            var items;
             async.waterfall([
                 function(next) {
                     async.parallel([
@@ -591,35 +528,31 @@ describe('mongoose-context', function() {
                         function(cb) { Book2.create(bookData2, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User4.create(userData2, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        items = results;
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
-                        function(cb) { Book1.findOne({_id: items[0]._id}).exec(cb); },
-                        function(cb) { Book2.findOne({_id: items[1]._id}).exec(cb); },
-                        function(cb) { User3.findOne({_id: items[2]._id}).exec(cb); },
-                        function(cb) { User4.findOne({_id: items[3]._id}).exec(cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(4);
-                        var context =  [ context1, context2, context3, context4 ];
-                        results.forEach(function(item,index) {
-                            item.should.have.property('$getContext');
-                            item.$getContext().should.match(context[index]);
-                            item.toObject().should.match(items[index].toObject());
-                        });
-                        next();
+                        function(cb) { Book1.findOne({_id: results[0]._id}).exec(cb); },
+                        function(cb) { Book2.findOne({_id: results[1]._id}).exec(cb); },
+                        function(cb) { User3.findOne({_id: results[2]._id}).exec(cb); },
+                        function(cb) { User4.findOne({_id: results[3]._id}).exec(cb); }
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(4);
+                    var context =  [ context1, context2, context3, context4 ];
+                    results.forEach(function(item,index) {
+                        item.should.have.property('$getContext');
+                        item.$getContext().should.match(context[index]);
+                        item.toObject().should.match(results[index].toObject());
                     });
+                    next();
                 }
             ], done);
         });
 
         it('should produce context instances with Model.findOne() using exec() and promises', function(done) {
-            var items;
+            var isDone = false;
             async.waterfall([
                 function(next) {
                     async.parallel([
@@ -627,38 +560,34 @@ describe('mongoose-context', function() {
                         function(cb) { Book2.create(bookData2, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User4.create(userData2, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        items = results;
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
-                    var isDone = false;
-                    function success(cb) { return function(result) { cb(null,result)} }
-                    function end() { if (!isDone) { isDone = true; next(); } }
+                function(results, next) {
+                    function ignore() { }
+                    function success(cb) { return function(result) { cb(null,result); } }
+                    function end(err, results) { if (!isDone) { isDone = true; next(err, results); } }
                     async.parallel([
-                        function(cb) { Book1.findOne({_id: items[0]._id}).exec().then(success(cb),cb).then(end,end); },
-                        function(cb) { Book2.findOne({_id: items[1]._id}).exec().then(success(cb),cb).then(end,end); },
-                        function(cb) { User3.findOne({_id: items[2]._id}).exec().then(success(cb),cb).then(end,end); },
-                        function(cb) { User4.findOne({_id: items[3]._id}).exec().then(success(cb),cb).then(end,end); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(4);
-                        var context =  [ context1, context2, context3, context4 ];
-                        results.forEach(function(item,index) {
-                            item.should.have.property('$getContext');
-                            item.$getContext().should.match(context[index]);
-                            item.toObject().should.match(items[index].toObject());
-                        });
-                        next();
+                        function(cb) { Book1.findOne({_id: results[0]._id}).exec().then(success(cb),cb).then(ignore,end); },
+                        function(cb) { Book2.findOne({_id: results[1]._id}).exec().then(success(cb),cb).then(ignore,end); },
+                        function(cb) { User3.findOne({_id: results[2]._id}).exec().then(success(cb),cb).then(ignore,end); },
+                        function(cb) { User4.findOne({_id: results[3]._id}).exec().then(success(cb),cb).then(ignore,end); }
+                    ], end);
+                },
+                function(results, next) {
+                    isDone = false;
+                    results.length.should.equal(4);
+                    var context =  [ context1, context2, context3, context4 ];
+                    results.forEach(function(item,index) {
+                        item.should.have.property('$getContext');
+                        item.$getContext().should.match(context[index]);
+                        item.toObject().should.match(results[index].toObject());
                     });
+                    next();
                 }
             ], done);
         });
 
         it('should produce context instances with Model.findOneAndRemove()', function(done) {
-            var items;
             async.waterfall([
                 function(next) {
                     async.parallel([
@@ -666,36 +595,31 @@ describe('mongoose-context', function() {
                         function(cb) { Book2.create(bookData2, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User4.create(userData2, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        items = results;
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
-                        function(cb) { Book1.findOneAndRemove({_id: items[0]._id}, cb); },
-                        function(cb) { Book2.findOneAndRemove({_id: items[1]._id}, cb); },
-                        function(cb) { User3.findOneAndRemove({_id: items[2]._id}, cb); },
-                        function(cb) { User4.findOneAndRemove({_id: items[3]._id}, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(4);
-                        var context =  [ context1, context2, context3, context4 ];
-                        var data = [ bookData, bookData2, userData, userData2 ];
-                        results.forEach(function(item,index) {
-                            item.should.have.property('$getContext');
-                            item.$getContext().should.match(context[index]);
-                            item.toObject().should.match(data[index]);
-                        });
-                        next();
+                        function(cb) { Book1.findOneAndRemove({_id: results[0]._id}, cb); },
+                        function(cb) { Book2.findOneAndRemove({_id: results[1]._id}, cb); },
+                        function(cb) { User3.findOneAndRemove({_id: results[2]._id}, cb); },
+                        function(cb) { User4.findOneAndRemove({_id: results[3]._id}, cb); }
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(4);
+                    var context =  [ context1, context2, context3, context4 ];
+                    var data = [ bookData, bookData2, userData, userData2 ];
+                    results.forEach(function(item,index) {
+                        item.should.have.property('$getContext');
+                        item.$getContext().should.match(context[index]);
+                        item.toObject().should.match(data[index]);
                     });
+                    next();
                 }
             ], done);
         });
 
         it('should produce context instances with Model.findOneAndUpdate()', function(done) {
-            var items;
             async.waterfall([
                 function(next) {
                     async.parallel([
@@ -703,30 +627,26 @@ describe('mongoose-context', function() {
                         function(cb) { Book2.create(bookData2, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User4.create(userData2, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        items = results;
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
-                        function(cb) { Book1.findOneAndUpdate({_id: items[0]._id}, bookData3, { new: true }, cb); },
-                        function(cb) { Book2.findOneAndUpdate({_id: items[1]._id}, bookData3, { new: false }, cb); },
-                        function(cb) { User3.findOneAndUpdate({_id: items[2]._id}, userData3, { new: true }, cb); },
-                        function(cb) { User4.findOneAndUpdate({_id: items[3]._id}, userData3, { new: false }, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(4);
-                        var context =  [ context1, context2, context3, context4 ];
-                        var data = [ bookData3, bookData2, userData3, userData2 ];
-                        results.forEach(function(item,index) {
-                            item.should.have.property('$getContext');
-                            item.$getContext().should.match(context[index]);
-                            item.toObject().should.match(data[index]);
-                        });
-                        next();
+                        function(cb) { Book1.findOneAndUpdate({_id: results[0]._id}, bookData3, { new: true }, cb); },
+                        function(cb) { Book2.findOneAndUpdate({_id: results[1]._id}, bookData3, { new: false }, cb); },
+                        function(cb) { User3.findOneAndUpdate({_id: results[2]._id}, userData3, { new: true }, cb); },
+                        function(cb) { User4.findOneAndUpdate({_id: results[3]._id}, userData3, { new: false }, cb); }
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(4);
+                    var context =  [ context1, context2, context3, context4 ];
+                    var data = [ bookData3, bookData2, userData3, userData2 ];
+                    results.forEach(function(item,index) {
+                        item.should.have.property('$getContext');
+                        item.$getContext().should.match(context[index]);
+                        item.toObject().should.match(data[index]);
                     });
+                    next();
                 }
             ], done);
         });
@@ -742,7 +662,6 @@ describe('mongoose-context', function() {
         });
 
         it('should produce context instances through Model.remove()', function(done) {
-            var items;
             async.waterfall([
                 function(next) {
                     async.parallel([
@@ -750,35 +669,33 @@ describe('mongoose-context', function() {
                         function(cb) { Book2.create(bookData, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User4.create(userData, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        items = results;
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
-                        function(cb) { Book1.remove({_id: items[0]}).find({content: bookData.content}, cb) },
-                        function(cb) { User3.remove({_id: items[2]}).find({content: userData.firstName}).exec(cb) }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(2);
-                        var context =  [ context1, context3 ];
-                        var data = [ bookData, userData ];
-                        results.forEach(function(items,index) {
-                            items.forEach(function(item) {
-                                item.should.have.property('$getContext');
-                                item.$getContext().should.match(context[index]);
-                                item.toObject().should.match(data[index]);
-                            });
+                        function(cb) { Book1.remove({_id: results[0]}).find({content: bookData.content}, cb) },
+                        function(cb) { User3.remove({_id: results[2]}).find({content: userData.firstName}).exec(cb) }
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(2);
+                    var context =  [ context1, context3 ];
+                    var data = [ bookData, userData ];
+                    results.forEach(function(items,index) {
+                        items.forEach(function(item) {
+                            item.should.have.property('$getContext');
+                            item.$getContext().should.match(context[index]);
+                            item.toObject().should.match(data[index]);
                         });
-                        next();
                     });
+                    next();
                 }
             ], done);
         });
 
         it('should produce context instances with Model.update()', function(done) {
+            var newSummary = 'newSummary';
+            var newLastName = 'newLastName';
             async.waterfall([
                 function(next) {
                     async.parallel([
@@ -786,31 +703,27 @@ describe('mongoose-context', function() {
                         function(cb) { Book2.create(bookData, cb); },
                         function(cb) { User3.create(userData, cb); },
                         function(cb) { User4.create(userData, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
-                    var newSummary = 'newSummary';
-                    var newLastName = 'newLastName';
+                function(results, next) {
                     async.parallel([
                         function(cb) { Book2.update({content: bookData.content}, {summary: newSummary}).find({summary: newSummary}, cb) },
                         function(cb) { User4.update({firstName: userData.firstName}, {lastName: newLastName}).find({lastName: newLastName}, cb) }
-                    ], function(err,results) {
-                        var context =  [ context2, context4 ];
-                        var key = [ 'summary', 'lastName' ];
-                        var data = [ newSummary, newLastName ];
-                        results.forEach(function(items,index) {
-                            items.forEach(function(item) {
-                                item.should.have.property('$getContext');
-                                item.$getContext().should.match(context[index]);
-                                item.should.have.property(key[index]);
-                                item[key[index]].should.match(data[index]);
-                            });
+                    ], next);
+                },
+                function(results, next) {
+                    var context =  [ context2, context4 ];
+                    var key = [ 'summary', 'lastName' ];
+                    var data = [ newSummary, newLastName ];
+                    results.forEach(function(items,index) {
+                        items.forEach(function(item) {
+                            item.should.have.property('$getContext');
+                            item.$getContext().should.match(context[index]);
+                            item.should.have.property(key[index]);
+                            item[key[index]].should.match(data[index]);
                         });
-                        next();
                     });
+                    next();
                 }
             ], done);
         });
@@ -821,29 +734,26 @@ describe('mongoose-context', function() {
                     async.parallel([
                         function(cb) { Book1.create(bookData, cb); },
                         function(cb) { User3.create(userData, cb); },
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
                         function(cb) { Book2.where('content').equals(bookData.content).exec(cb) },
                         function(cb) { User4.where('firstName').equals(userData.firstName).exec(cb) }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(2);
-                        var context =  [ context2, context4 ];
-                        var data = [ bookData, userData ];
-                        results.forEach(function(items,index) {
-                            items.forEach(function(item) {
-                                item.should.have.property('$getContext');
-                                item.$getContext().should.match(context[index]);
-                                item.toObject().should.match(data[index]);
-                            });
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(2);
+                    var context =  [ context2, context4 ];
+                    var data = [ bookData, userData ];
+                    results.forEach(function(items,index) {
+                        items.forEach(function(item) {
+                            item.should.have.property('$getContext');
+                            item.$getContext().should.match(context[index]);
+                            item.toObject().should.match(data[index]);
                         });
-                        next();
                     });
+                    next();
                 }
             ], done);
         });
@@ -854,29 +764,26 @@ describe('mongoose-context', function() {
                     async.parallel([
                         function(cb) { Book1.create(bookData, cb); },
                         function(cb) { User3.create(userData, cb); },
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
                         function(cb) { Book2.$where('this.content === "' + bookData.content + '"').exec(cb) },
                         function(cb) { User4.$where('this.firstName === "' + userData.firstName + '"').exec(cb) }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(2);
-                        var context =  [ context2, context4 ];
-                        var data = [ bookData, userData ];
-                        results.forEach(function(items,index) {
-                            items.forEach(function(item) {
-                                item.should.have.property('$getContext');
-                                item.$getContext().should.match(context[index]);
-                                item.toObject().should.match(data[index]);
-                            });
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(2);
+                    var context =  [ context2, context4 ];
+                    var data = [ bookData, userData ];
+                    results.forEach(function(items,index) {
+                        items.forEach(function(item) {
+                            item.should.have.property('$getContext');
+                            item.$getContext().should.match(context[index]);
+                            item.toObject().should.match(data[index]);
                         });
-                        next();
                     });
+                    next();
                 }
             ], done);
         });
@@ -888,24 +795,10 @@ describe('mongoose-context', function() {
 
     describe('Instance methods', function() {
 
-        var conn, bookSchema, userSchema, Book1, Book2, User3, User4;
+        var conn, Book1, Book2, User3, User4;
 
         before(function(done){
             conn = mongoose.createConnection('mongodb://localhost:27017/mongoose-context-test');
-            bookSchema = mongoose.Schema({
-                content: String,
-                summary: String,
-                sales: Number,
-                profit: Number,
-                reviews: String,
-                remarks: String
-            });
-            userSchema = mongoose.Schema({
-                username: String,
-                firstName: String,
-                lastName: String,
-                email: String
-            });
             Book1 = conn.contextModel(context1, 'Book', bookSchema);
             Book2 = conn.contextModel(context2, 'Book');
             User3 = conn.contextModel(context3, 'User', userSchema);
@@ -934,34 +827,29 @@ describe('mongoose-context', function() {
         });
 
         it ('should produce context instances with instance.remove() using callbacks', function(done) {
-            var items;
             async.waterfall([
                 function(next) {
                     async.parallel([
                         function(cb) { Book1.create(bookData, cb); },
                         function(cb) { User3.create(userData, cb); },
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        items = results;
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
-                        function(cb) { items[0].remove(cb); },
-                        function(cb) { items[1].remove(cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(2);
-                        var context =  [ context1, context3 ];
-                        var data = [ bookData, userData ];
-                        results.forEach(function(item,index) {
-                            item.should.have.property('$getContext');
-                            item.$getContext().should.match(context[index]);
-                            item.toObject().should.match(data[index]);
-                        });
-                        next();
+                        function(cb) { results[0].remove(cb); },
+                        function(cb) { results[1].remove(cb); }
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(2);
+                    var context =  [ context1, context3 ];
+                    var data = [ bookData, userData ];
+                    results.forEach(function(item,index) {
+                        item.should.have.property('$getContext');
+                        item.$getContext().should.match(context[index]);
+                        item.toObject().should.match(data[index]);
                     });
+                    next();
                 }
             ], done);
 
@@ -970,7 +858,6 @@ describe('mongoose-context', function() {
         // Version 3.8 doesn't support promises with instance.remove()
         /*
         it ('should produce context instances with instance.remove() using promises', function(done) {
-            var items;
             var isDone = false;
             function success(cb) { return function(result) { cb(null,result)} }
             function end() { if (!isDone) { isDone = true; done(); } }
@@ -979,28 +866,24 @@ describe('mongoose-context', function() {
                     async.parallel([
                         function(cb) { Book1.create(bookData, cb); },
                         function(cb) { User3.create(userData, cb); },
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        items = results;
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
-                        function(cb) { items[0].remove().then(success(cb),cb).then(end,end); },
-                        function(cb) { items[1].remove().then(success(cb),cb).then(end,end); },
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(2);
-                        var context =  [ context1, context3 ];
-                        var data = [ bookData, userData ];
-                        results.forEach(function(item,index) {
-                            item.should.have.property('$getContext');
-                            item.$getContext().should.match(context[index]);
-                            item.toObject().should.match(data[index]);
-                        });
-                        next();
+                        function(cb) { results[0].remove().then(success(cb),cb).then(end,end); },
+                        function(cb) { results[1].remove().then(success(cb),cb).then(end,end); },
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(2);
+                    var context =  [ context1, context3 ];
+                    var data = [ bookData, userData ];
+                    results.forEach(function(item,index) {
+                        item.should.have.property('$getContext');
+                        item.$getContext().should.match(context[index]);
+                        item.toObject().should.match(data[index]);
                     });
+                    next();
                 }
             ], done);
         });
@@ -1021,70 +904,60 @@ describe('mongoose-context', function() {
                 lastName: 'User',
                 email: 'testuser@email.com'
             };
-            var items;
             async.waterfall([
                 function(next) {
                     async.parallel([
                         function(cb) { Book1.create(myBookData, cb); },
                         function(cb) { User3.create(myUserData, cb); },
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        items = results;
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     myBookData.content = "Changed " + myBookData.content;
                     myUserData.firstName = "Changed " + myUserData.firstName;
                     async.parallel([
-                        function(cb) { items[0].content = myBookData.content; items[0].save(cb); },
-                        function(cb) { items[1].firstName = myUserData.firstName; items[1].save(cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(2);
-                        var context =  [ context1, context3 ];
-                        var data = [ myBookData, myUserData ];
-                        results.forEach(function(item,index) {
-                            item[0].should.have.property('$getContext');
-                            item[0].$getContext().should.match(context[index]);
-                            item[0].toObject().should.match(data[index]);
-                        });
-                        next();
+                        function(cb) { results[0].content = myBookData.content; results[0].save(cb); },
+                        function(cb) { results[1].firstName = myUserData.firstName; results[1].save(cb); }
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(2);
+                    var context =  [ context1, context3 ];
+                    var data = [ myBookData, myUserData ];
+                    results.forEach(function(item,index) {
+                        item[0].should.have.property('$getContext');
+                        item[0].$getContext().should.match(context[index]);
+                        item[0].toObject().should.match(data[index]);
                     });
+                    next();
                 }
             ], done);
 
         });
 
         it ('should produce context instances with instance.update() using exec()', function(done) {
-            var items;
             async.waterfall([
                 function(next) {
                     async.parallel([
                         function(cb) { Book1.create(bookData, cb); },
                         function(cb) { User3.create(userData, cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        items = results;
-                        next();
-                    });
+                    ], next);
                 },
-                function(next) {
+                function(results, next) {
                     async.parallel([
-                        function(cb) { items[0].update({content: "Changed"}).findOne({_id: items[0]._id}).exec(cb); },
-                        function(cb) { items[1].update({firstName: "Changed"}).findOne({_id: items[1]._id}).exec(cb); }
-                    ], function(err,results) {
-                        should.not.exist(err);
-                        results.length.should.equal(2);
-                        var context =  [ context1, context3 ];
-                        var data = [ bookData, userData ];
-                        results.forEach(function(item,index) {
-                            item.should.have.property('$getContext');
-                            item.$getContext().should.match(context[index]);
-                            item.toObject().should.match(data[index]);
-                        });
-                        next();
+                        function(cb) { results[0].update({content: "Changed"}).findOne({_id: results[0]._id}).exec(cb); },
+                        function(cb) { results[1].update({firstName: "Changed"}).findOne({_id: results[1]._id}).exec(cb); }
+                    ], next);
+                },
+                function(results, next) {
+                    results.length.should.equal(2);
+                    var context =  [ context1, context3 ];
+                    var data = [ bookData, userData ];
+                    results.forEach(function(item,index) {
+                        item.should.have.property('$getContext');
+                        item.$getContext().should.match(context[index]);
+                        item.toObject().should.match(data[index]);
                     });
+                    next();
                 }
             ], done);
 
