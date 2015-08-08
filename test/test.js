@@ -900,7 +900,7 @@ describe('mongoose-context', function() {
             done();
         });
 
-        it('should produce context instances with Model.populate() using callbacks', function(done) {
+        it('should produce context instances with instance.populate() using callbacks', function(done) {
             async.waterfall([
                 function(next) {
                     async.parallel([
@@ -941,7 +941,84 @@ describe('mongoose-context', function() {
             ], done);
         });
 
-        it('should produce context instances with Model.populate() using exec', function(done) {
+        // execPopulate() requires mongoose version >= 4.0.0
+        if (semver.gte(mongoose.version, "4.0.0")) {
+            it('should produce context instances with instance.populate() using execPopulate()', function (done) {
+                var isDone = false;
+                async.waterfall([
+                    function (next) {
+                        async.parallel([
+                            function (cb) {
+                                Book1.create(bookData, cb);
+                            },
+                            function (cb) {
+                                Book2.create(bookData, cb);
+                            },
+                            function (cb) {
+                                User3.create(userData, cb);
+                            },
+                            function (cb) {
+                                User4.create(userData, cb);
+                            }
+                        ], next);
+                    },
+                    function (results, next) {
+                        async.parallel([
+                            function (cb) {
+                                Reader1.create({book: results[0]._id, user: results[2]._id, rating: 10}, cb);
+                            },
+                            function (cb) {
+                                Reader1.create({book: results[1]._id, user: results[3]._id, rating: 20}, cb);
+                            }
+                        ], next);
+                    },
+                    function (results, next) {
+                        results.length.should.equal(2);
+                        Reader5.find(next);
+                    },
+                    function (results, next) {
+                        var tasks = [];
+
+                        function ignore() {
+                        }
+
+                        function success(cb) {
+                            return function (result) {
+                                cb(null, result);
+                            }
+                        }
+
+                        function end(err, results) {
+                            if (!isDone) {
+                                isDone = true;
+                                next(err, results);
+                            }
+                        }
+
+                        results.forEach(function (reader) {
+                            reader.should.have.property('$getContext');
+                            reader.$getContext().should.match(context5);
+                            tasks.push(function (cb) {
+                                reader.populate('user book').execPopulate().then(success(cb), cb).then(ignore, end);
+                            });
+                        });
+                        async.parallel(tasks, end);
+                    },
+                    function (results, next) {
+                        isDone = false;
+                        results.forEach(function (reader) {
+                            reader.should.have.property('$getContext');
+                            reader.$getContext().should.match(context5);
+                            reader.user.firstName.should.equal(userData.firstName);
+                            reader.book.title.should.equal(bookData.title);
+                        });
+                        next();
+                    }
+                ], done);
+            });
+        };
+
+        it('should produce context instances with Model.populate() using exec()', function(done) {
             async.waterfall([
                 function(next) {
                     async.parallel([
@@ -1002,12 +1079,10 @@ describe('mongoose-context', function() {
 
         });
 
-        // Version 3.8 doesn't support promises with instance.remove()
+        // Promises with instance.remove() requires mongoose version >= 4.0.0
         if (semver.gte(mongoose.version, "4.0.0")) {
             it ('should produce context instances with instance.remove() using promises', function(done) {
                 var isDone = false;
-                function success(cb) { return function(result) { cb(null,result)} }
-                function end() { if (!isDone) { isDone = true; done(); } }
                 async.waterfall([
                     function(next) {
                         async.parallel([
@@ -1016,12 +1091,16 @@ describe('mongoose-context', function() {
                         ], next);
                     },
                     function(results, next) {
+                        function ignore() { }
+                        function success(cb) { return function(result) { cb(null,result); } }
+                        function end(err, results) { if (!isDone) { isDone = true; next(err, results); } }
                         async.parallel([
-                            function(cb) { results[0].remove().then(success(cb),cb).then(end,end); },
-                            function(cb) { results[1].remove().then(success(cb),cb).then(end,end); },
-                        ], next);
+                            function(cb) { results[0].remove().then(success(cb),cb).then(ignore,end); },
+                            function(cb) { results[1].remove().then(success(cb),cb).then(ignore,end); },
+                        ], end);
                     },
                     function(results, next) {
+                        isDone = false;
                         results.length.should.equal(2);
                         var context =  [ context1, context3 ];
                         var data = [ bookData, userData ];
