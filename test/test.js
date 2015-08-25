@@ -4,7 +4,7 @@ var should = require('should');
 var mongoose = require('mongoose');
 var async = require('async');
 var semver = require('semver');
-require('../index');
+var mongooseContext = require('../index');
 
 describe('mongoose-context', function() {
 
@@ -302,6 +302,38 @@ describe('mongoose-context', function() {
               item.toObject().should.match(data[index]);
             });
           });
+          next();
+        }
+      ], done);
+    });
+
+    it('should be able to change context without affecting others', function(done) {
+      var BookX = conn.contextModel(context1, 'Book', bookSchema);
+      async.waterfall([
+        function(next) {
+          async.parallel([
+            function(cb) { BookX.create(bookData, cb); },
+            function(cb) { Book2.create(bookData2, cb); },
+          ], next);
+        },
+        function(results,next) {
+          results.length.should.equal(2);
+          results[0].should.have.property('$getContext');
+          results[0].$getContext().should.equal(context1);
+          results[1].should.have.property('$getContext');
+          results[1].$getContext().should.equal(context2);
+          BookX.$setContext(context3);
+          async.parallel([
+            function(cb) { BookX.create(bookData, cb); },
+            function(cb) { Book2.create(bookData2, cb); },
+          ], next);
+        },
+        function(results,next) {
+          results.length.should.equal(2);
+          results[0].should.have.property('$getContext');
+          results[0].$getContext().should.equal(context3);
+          results[1].should.have.property('$getContext');
+          results[1].$getContext().should.equal(context2);
           next();
         }
       ], done);
@@ -1455,5 +1487,138 @@ describe('mongoose-context', function() {
     });
 
   })
+
+  describe('Events', function() {
+
+    var conn;
+
+    before(function(done) {
+      conn = mongoose.createConnection('mongodb://localhost:27017/mongoose-context-test');
+      done();
+    });
+
+    var objects = [];
+    function logEvent(obj) {
+      objects.push(obj);
+    };
+
+    it ('should emit contextualized events for new models and queryies', function(done) {
+      var Book1,Book2;
+      async.waterfall([
+        function(next) {
+          objects = [];
+          mongooseContext.on('contextualized', logEvent);
+          Book1 = conn.contextModel(context1, 'Book', bookSchema);
+          Book1.find(function() { next(); });
+        },
+        function(next) {
+          objects.length.should.be.above(0);
+          var queries = 0;
+          objects.forEach(function(obj) {
+            obj.should.have.property('$getContext');
+            obj.$getContext().should.equal(context1);
+            if (obj instanceof mongoose.Query)
+              queries++;
+          });
+          queries.should.be.within(1, objects.length-1);
+          next();
+        },
+        function(next) {
+          objects = [];
+          Book2 = conn.contextModel(context2, 'Book', bookSchema);
+          Book2.find(function() { next(); });
+        },
+        function(next) {
+          objects.length.should.be.above(0);
+          var queries = 0;
+          objects.forEach(function(obj) {
+            obj.should.have.property('$getContext');
+            obj.$getContext().should.equal(context2);
+            if (obj instanceof mongoose.Query)
+              queries++;
+          });
+          queries.should.be.within(1, objects.length-1);
+          mongooseContext.removeListener('contextualized', logEvent);
+          next();
+        }
+      ], done);
+    });
+
+    it('should emit instantiated events for new models instances', function(done) {
+      var Book1,Book2;
+      async.waterfall([
+        function(next) {
+          objects = [];
+          mongooseContext.on('instantiated', logEvent);
+          Book1 = conn.contextModel(context1, 'Book', bookSchema);
+          Book2 = conn.contextModel(context1, 'Book');
+          objects.length.should.equal(0);
+          var book1 = new Book1(bookData);
+          objects.length.should.equal(1);
+          objects[0].should.have.property('$getContext');
+          objects[0].$getContext().should.equal(context1);
+          Book1.remove(function () {
+            next();
+          });
+        },
+        function(next) {
+          objects = [];
+          async.parallel([
+            function(cb) { Book1.create(bookData2, cb) },
+            function(cb) { Book1.create(bookData3, cb) }
+          ], next);
+        },
+        function(results,next) {
+          objects.length.should.be.equal(2);
+          objects.forEach(function(obj) {
+            obj.should.be.instanceof(mongoose.Model);
+            obj.should.have.property('$getContext');
+            obj.$getContext().should.equal(context1);
+          });
+          objects = [];
+          Book1.find(next);
+        },
+        function(results,next) {
+          results.length.should.be.above(0);
+          results.length.should.equal(objects.length);
+          objects.forEach(function(obj) {
+            obj.should.be.instanceof(mongoose.Model);
+            obj.should.have.property('$getContext');
+            obj.$getContext().should.equal(context1);
+          });
+          mongooseContext.removeListener('instantiated', logEvent);
+          next();
+        }
+      ], done);
+    });
+
+    it('should emit contextChanged events for context changes', function(done) {
+      objects = [];
+      mongooseContext.on('contextChanged', logEvent);
+      var BookX = conn.contextModel(context1, 'Book', bookSchema);
+      objects.length.should.equal(0);
+      var bookX = new BookX(bookData);
+      objects.length.should.equal(0);
+      BookX.$setContext(context1);
+      objects.length.should.equal(0);
+      BookX.$setContext(context2);
+      objects.length.should.equal(1);
+      objects[0].should.have.property('$getContext');
+      objects[0].$getContext().should.equal(context2);
+      objects = [];
+      bookX.$setContext(context1)
+      objects.length.should.equal(0);
+      bookX.$setContext(context3)
+      objects.length.should.equal(1);
+      objects[0].should.have.property('$getContext');
+      objects[0].$getContext().should.equal(context3);
+      done();
+    });
+
+    after(function(done) {
+      conn.close(done);
+    });
+
+  });
 
 });

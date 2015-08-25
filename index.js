@@ -1,34 +1,37 @@
 'use strict';
 
 var mongoose = require('mongoose');
+var EventEmitter = require('events').EventEmitter;
+var contextEvents = new EventEmitter();
+module.exports = contextEvents;
 
 function contextualize(target, context) {
 
-  var getContext;
-  if (typeof context === 'function') {
-    getContext = context;
-  } else {
-    getContext = function() {
-      var __context = context;
-      return function() {
-        return __context;
-      }
-    }();
-  }
-
-  if (target.hasOwnProperty('$getContext')) {
-    target.$getContext = getContext;
+  if (target.hasOwnProperty('$setContext')) {
+    target.$setContext(context);
     return target;
   }
+
+  var __context = context;
 
   var extTarget = target;
   if (typeof target === 'function') {
     extTarget = function() {
       var inst = target.apply(this, arguments);
-      return instantiate(inst, getContext);
+      return instantiate(inst, __context);
     };
   }
-  extTarget.$getContext = getContext;
+
+  extTarget.$getContext = function() {
+    return __context;
+  };
+
+  extTarget.$setContext = function(context) {
+    if (__context !== context) {
+      __context = context;
+      contextEvents.emit('contextChanged', extTarget);
+    }
+  };
 
   var key;
   for (key in target) {
@@ -44,13 +47,13 @@ function contextualize(target, context) {
           break;
         case 'model':
           if (target instanceof mongoose.Query) {
-            extTarget.model = contextualize(target.model, getContext);
+            extTarget.model = contextualize(target.model, __context);
           } else {
             extTarget.model = function() {
               var __method = target.model;
               return function() {
                 var model = __method.apply(target, arguments);
-                return contextualize(model, getContext);
+                return contextualize(model, __context);
               };
             }();
           }
@@ -129,7 +132,7 @@ function contextualize(target, context) {
           extTarget[key] = function() {
             var __method = target[key];
             return function() {
-              return contextualize(__method.apply(target, arguments), getContext);
+              return contextualize(__method.apply(target, arguments), __context);
             }
           }();
           break;
@@ -154,13 +157,16 @@ function contextualize(target, context) {
       }());
     }
   }
+
+  contextEvents.emit('contextualized', extTarget);
+
   return extTarget;
 
   function overloadPromise(method, self) {
     var __target = self || target;
     var __method = target[method];
     return function() {
-      var i,cb,promise,args = [];
+      var i,cb,args = [];
       for (i = 0; i < arguments.length; i++) {
         if (typeof arguments[i] === 'function') {
           cb = arguments[i];
@@ -169,20 +175,18 @@ function contextualize(target, context) {
           args.push(arguments[i]);
         }
       }
-      promise = new mongoose.Promise;
+      var __promise = new mongoose.Promise;
       args.push(function() {
-        var __promise = promise;
-        return function() {
-          if (this)
-            this.$getContext = getContext;
-          addContext(arguments);
-          if (cb)
-            cb.apply(this, arguments);
-          __promise.resolve.apply(__promise, arguments);
-        };
-      }());
+        if (this)
+          this.$getContext = extTarget.$getContext;
+        addContext(arguments);
+        if (cb)
+          cb.apply(this, arguments);
+        //__promise.resolve.apply(__promise, arguments);
+        __promise.resolve.apply(__promise, arguments);
+      });
       __method.apply(__target, args);
-      return promise;
+      return __promise;
     }
   }
 
@@ -201,7 +205,7 @@ function contextualize(target, context) {
       if (cb) {
         args.push(function() {
           if (this)
-            this.$getContext = getContext;
+            this.$getContext = extTarget.$getContext;
           if (callback)
             callback.apply(this, arguments);
           else
@@ -211,7 +215,7 @@ function contextualize(target, context) {
       }
       var query = __method.apply(target, args);
       if (query instanceof mongoose.Query)
-        query = contextualize(query, getContext);
+        query = contextualize(query, __context);
       return query;
     }
   }
@@ -221,32 +225,42 @@ function contextualize(target, context) {
       if (Array.isArray(results[i])) {
         results[i].forEach(function(arg) {
           if (arg instanceof mongoose.Model)
-            instantiate(arg, getContext);
+            instantiate(arg, __context);
         })
       } else if (results[i] instanceof mongoose.Model) {
-        instantiate(results[i], getContext);
+        instantiate(results[i], __context);
       }
     }
   }
 }
 
 function instantiate(inst, context) {
-  inst.$getContext = context;
-	if (typeof inst.model === 'function') {
-    inst.model = function(){
+  var __context = null;
+  if (inst.hasOwnProperty('$setContext')) {
+    inst.$setContext(context);
+  } else {
+    __context = context;
+    inst.$getContext = function() {
+      return __context;
+    };
+    inst.$setContext = function(context) {
+      if (__context !== context) {
+        __context = context;
+        contextEvents.emit('contextChanged', inst);
+      }
+    };
+    if (typeof inst.model === 'function') {
       var __model = inst.model;
-      return function() {
-        return contextualize(__model.apply(this,arguments), context);
-      }
-    }();
-  }
-  if (typeof inst.update === 'function') {
-    inst.update = function() {
+      inst.model = function () {
+        return contextualize(__model.apply(this, arguments), __context);
+      };
+    }
+    if (typeof inst.update === 'function') {
       var __update = inst.update;
-      return function() {
-        return contextualize(__update.apply(this,arguments), context);
+      inst.update = function () {
+        return contextualize(__update.apply(this, arguments), __context);
       }
-    }();
+    }
   }
   inst.schema.eachPath(function(name,type) {
     if (type instanceof mongoose.Schema.Types.DocumentArray)
@@ -254,13 +268,15 @@ function instantiate(inst, context) {
         instantiate(subdoc, context);
       })
   });
+  if (__context)
+    contextEvents.emit('instantiated', inst);
   return inst;
 }
 
 var contextModel = function(context) {
   var args = Array.prototype.slice.call(arguments, 1);
   var model = this.model.apply(this, args);
-  return contextualize(model, context, true);
+  return contextualize(model, context);
 };
 
 mongoose.contextModel = contextModel.bind(mongoose);
