@@ -7,6 +7,9 @@ module.exports = contextEvents;
 
 function contextualize(target, context) {
 
+  if (!target)
+    return target;
+
   if (target.hasOwnProperty('$setContext')) {
     target.$setContext(context);
     return target;
