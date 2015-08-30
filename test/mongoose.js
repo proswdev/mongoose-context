@@ -6,28 +6,28 @@ var async = require('async');
 var mongooseContext = require('../index');
 var TestData = require('./testdata');
 
-describe('Mongoose', function() {
+describe('Mongoose', function () {
 
   var testData = new TestData();
 
-  describe('Using default connection', function() {
+  describe('Using default connection', function () {
 
-    before(function(done){
+    before(function (done) {
       mongoose.connect('mongodb://localhost:27017/mongoose-context-test');
       done();
     });
 
-    it ('should be able to create normal model without context', function(done) {
+    it('should be able to create normal model without context', function (done) {
       var Book = mongoose.model('Book', testData.bookSchema);
       Book.should.not.have.property('$getContext');
-      Book.create(testData.bookData, function(err,book) {
+      Book.create(testData.bookData, function (err, book) {
         should.not.exist(err);
         should.exist(book);
         done();
       });
     });
 
-    it ('should be able to create model with context', function(done) {
+    it('should be able to create model with context', function (done) {
       var Book1 = mongoose.contextModel(testData.context1, 'Book', testData.bookSchema);
       var Book2 = mongoose.contextModel(testData.context2, 'Book');
       var User1 = mongoose.contextModel(testData.context1, 'User', testData.userSchema);
@@ -43,32 +43,32 @@ describe('Mongoose', function() {
       done();
     });
 
-    after(function(done) {
+    after(function (done) {
       mongoose.disconnect(done);
     });
 
   });
 
-  describe('Using custom connection', function() {
+  describe('Using custom connection', function () {
 
     var conn;
 
-    before(function(done){
+    before(function (done) {
       conn = mongoose.createConnection('mongodb://localhost:27017/mongoose-context-test');
       done();
     });
 
-    it ('should be able to create normal model without context', function(done) {
+    it('should be able to create normal model without context', function (done) {
       var Book = conn.model('Book', testData.bookSchema);
       Book.should.not.have.property('context');
-      Book.create(testData.bookData, function(err,book) {
+      Book.create(testData.bookData, function (err, book) {
         should.not.exist(err);
         should.exist(book);
         done();
       });
     });
 
-    it ('should be able to create model with context', function(done) {
+    it('should be able to create model with context', function (done) {
       var Book1 = conn.contextModel(testData.context1, 'Book', testData.bookSchema);
       var Book2 = conn.contextModel(testData.context2, 'Book');
       var User1 = conn.contextModel(testData.context1, 'User', testData.userSchema);
@@ -84,7 +84,7 @@ describe('Mongoose', function() {
       done();
     });
 
-    after(function(done) {
+    after(function (done) {
       conn.close(done);
     });
 

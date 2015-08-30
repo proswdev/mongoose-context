@@ -2,7 +2,7 @@
 
 var mongoose = require('mongoose');
 
-module.exports = function() {
+module.exports = function () {
 
   this.bookSchemaData = {
     title: String,

@@ -19,17 +19,17 @@ function contextualize(target, context) {
 
   var extTarget = target;
   if (typeof target === 'function') {
-    extTarget = function() {
+    extTarget = function () {
       var inst = target.apply(this, arguments);
       return instantiate(inst, __context);
     };
   }
 
-  extTarget.$getContext = function() {
+  extTarget.$getContext = function () {
     return __context;
   };
 
-  extTarget.$setContext = function(context) {
+  extTarget.$setContext = function (context) {
     if (__context !== context) {
       __context = context;
       contextEvents.emit('contextChanged', extTarget);
@@ -39,7 +39,7 @@ function contextualize(target, context) {
   var key;
   for (key in target) {
     if (typeof target[key] === 'function') {
-      switch(key) {
+      switch (key) {
         case 'create':
           extTarget[key] = overloadPromise(key, extTarget);
           break;
@@ -52,9 +52,9 @@ function contextualize(target, context) {
           if (target instanceof mongoose.Query) {
             extTarget.model = contextualize(target.model, __context);
           } else {
-            extTarget.model = function() {
+            extTarget.model = function () {
               var __method = target.model;
-              return function() {
+              return function () {
                 var model = __method.apply(target, arguments);
                 return contextualize(model, __context);
               };
@@ -132,18 +132,18 @@ function contextualize(target, context) {
         case 'toConstructor':
         case 'where':
         case 'within':
-          extTarget[key] = function() {
+          extTarget[key] = function () {
             var __method = target[key];
-            return function() {
+            return function () {
               return contextualize(__method.apply(target, arguments), __context);
             }
           }();
           break;
         default:
           if (extTarget !== target) {
-            extTarget[key] = function() {
+            extTarget[key] = function () {
               var __method = target[key];
-              return function() {
+              return function () {
                 return __method.apply(target, arguments);
               }
             }();
@@ -151,11 +151,15 @@ function contextualize(target, context) {
           break;
       }
     } else if (extTarget !== target) {
-      Object.defineProperty(extTarget, key, function() {
+      Object.defineProperty(extTarget, key, function () {
         var __key = key;
         return {
-          get: function() { return target[__key]; },
-          set: function(val) { target[__key] = val; }
+          get: function () {
+            return target[__key];
+          },
+          set: function (val) {
+            target[__key] = val;
+          }
         };
       }());
     }
@@ -168,8 +172,8 @@ function contextualize(target, context) {
   function overloadPromise(method, self) {
     var __target = self || target;
     var __method = target[method];
-    return function() {
-      var i,cb,args = [];
+    return function () {
+      var i, cb, args = [];
       for (i = 0; i < arguments.length; i++) {
         if (typeof arguments[i] === 'function') {
           cb = arguments[i];
@@ -179,13 +183,12 @@ function contextualize(target, context) {
         }
       }
       var __promise = new mongoose.Promise;
-      args.push(function() {
+      args.push(function () {
         if (this)
           this.$getContext = extTarget.$getContext;
         addContext(arguments);
         if (cb)
           cb.apply(this, arguments);
-        //__promise.resolve.apply(__promise, arguments);
         __promise.resolve.apply(__promise, arguments);
       });
       __method.apply(__target, args);
@@ -195,8 +198,8 @@ function contextualize(target, context) {
 
   function overloadQuery(method, callback) {
     var __method = target[method];
-    return function() {
-      var i,cb,args = [];
+    return function () {
+      var i, cb, args = [];
       for (i = 0; i < arguments.length; i++) {
         if (typeof arguments[i] === 'function') {
           cb = arguments[i];
@@ -206,7 +209,7 @@ function contextualize(target, context) {
         }
       }
       if (cb) {
-        args.push(function() {
+        args.push(function () {
           if (this)
             this.$getContext = extTarget.$getContext;
           if (callback)
@@ -226,7 +229,7 @@ function contextualize(target, context) {
   function addContext(results) {
     for (var i = 1; i < results.length; i++) {
       if (Array.isArray(results[i])) {
-        results[i].forEach(function(arg) {
+        results[i].forEach(function (arg) {
           if (arg instanceof mongoose.Model)
             instantiate(arg, __context);
         })
@@ -243,10 +246,10 @@ function instantiate(inst, context) {
     inst.$setContext(context);
   } else {
     __context = context;
-    inst.$getContext = function() {
+    inst.$getContext = function () {
       return __context;
     };
-    inst.$setContext = function(context) {
+    inst.$setContext = function (context) {
       if (__context !== context) {
         __context = context;
         contextEvents.emit('contextChanged', inst);
@@ -265,9 +268,9 @@ function instantiate(inst, context) {
       }
     }
   }
-  inst.schema.eachPath(function(name,type) {
+  inst.schema.eachPath(function (name, type) {
     if (type instanceof mongoose.Schema.Types.DocumentArray)
-      inst[name].forEach(function(subdoc) {
+      inst[name].forEach(function (subdoc) {
         instantiate(subdoc, context);
       })
   });
@@ -276,7 +279,7 @@ function instantiate(inst, context) {
   return inst;
 }
 
-var contextModel = function(context) {
+var contextModel = function (context) {
   var args = Array.prototype.slice.call(arguments, 1);
   var model = this.model.apply(this, args);
   return contextualize(model, context);
@@ -285,7 +288,7 @@ var contextModel = function(context) {
 mongoose.contextModel = contextModel.bind(mongoose);
 
 var createConnection = mongoose.createConnection;
-mongoose.createConnection = function() {
+mongoose.createConnection = function () {
   var conn = createConnection.apply(mongoose, arguments);
   conn.contextModel = contextModel.bind(conn);
   return conn;
