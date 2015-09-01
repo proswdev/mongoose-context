@@ -6,6 +6,7 @@ var async = require('async');
 var semver = require('semver');
 var mongooseContext = require('../index');
 var TestData = require('./testdata');
+var TestPromise = require('./testpromise');
 
 describe('Documents', function () {
 
@@ -108,7 +109,6 @@ describe('Documents', function () {
   // execPopulate() requires mongoose version >= 4.0.0
   if (semver.gte(mongoose.version, "4.0.0")) {
     it('should produce context documents with Document.populate() using execPopulate()', function (done) {
-      var isDone = false;
       async.waterfall([
         function (next) {
           async.parallel([
@@ -142,34 +142,17 @@ describe('Documents', function () {
         },
         function (results, next) {
           var tasks = [];
-
-          function ignore() {
-          }
-
-          function success(cb) {
-            return function (result) {
-              cb(null, result);
-            }
-          }
-
-          function end(err, results) {
-            if (!isDone) {
-              isDone = true;
-              next(err, results);
-            }
-          }
-
+          var tp = new TestPromise(next);
           results.forEach(function (reader) {
             reader.should.have.property('$getContext');
             reader.$getContext().should.equal(testData.context5);
             tasks.push(function (cb) {
-              reader.populate('user book').execPopulate().then(success(cb), cb).then(ignore, end);
+              reader.populate('user book').execPopulate().then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
             });
           });
-          async.parallel(tasks, end);
+          async.parallel(tasks, tp.end);
         },
         function (results, next) {
-          isDone = false;
           results.forEach(function (reader) {
             reader.should.have.property('$getContext');
             reader.$getContext().should.equal(testData.context5);
@@ -223,7 +206,6 @@ describe('Documents', function () {
   // Promises with Document.remove() requires mongoose version >= 4.0.0
   if (semver.gte(mongoose.version, "4.0.0")) {
     it('should produce context documents with Document.remove() using promises', function (done) {
-      var isDone = false;
       async.waterfall([
         function (next) {
           async.parallel([
@@ -236,33 +218,17 @@ describe('Documents', function () {
           ], next);
         },
         function (results, next) {
-          function ignore() {
-          }
-
-          function success(cb) {
-            return function (result) {
-              cb(null, result);
-            }
-          }
-
-          function end(err, results) {
-            if (!isDone) {
-              isDone = true;
-              next(err, results);
-            }
-          }
-
+          var tp = new TestPromise(next);
           async.parallel([
             function (cb) {
-              results[0].remove().then(success(cb), cb).then(ignore, end);
+              results[0].remove().then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
             },
             function (cb) {
-              results[1].remove().then(success(cb), cb).then(ignore, end);
+              results[1].remove().then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
             },
-          ], end);
+          ], tp.end);
         },
         function (results, next) {
-          isDone = false;
           results.length.should.equal(2);
           var context = [testData.context1, testData.context3];
           var data = [testData.bookData, testData.userData];

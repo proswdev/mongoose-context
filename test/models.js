@@ -5,6 +5,7 @@ var mongoose = require('mongoose');
 var async = require('async');
 var mongooseContext = require('../index');
 var TestData = require('./testdata');
+var TestPromise = require('./testpromise');
 
 describe('Models', function () {
 
@@ -120,39 +121,22 @@ describe('Models', function () {
   });
 
   it('should produce context documents with Model.create() using promises', function (done) {
-    var isDone = false;
-
-    function ignore() {
-    }
-
-    function success(cb) {
-      return function (result) {
-        cb(null, result);
-      }
-    }
-
-    function end(err) {
-      if (!isDone) {
-        isDone = true;
-        done(err);
-      }
-    }
-
+    var tp = new TestPromise(done);
     async.parallel([
       function (cb) {
-        Book1.create(testData.bookData).then(success(cb), cb).then(ignore, end);
+        Book1.create(testData.bookData).then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
       },
       function (cb) {
-        Book1.create(testData.bookData2).then(success(cb), cb).then(ignore, end);
+        Book1.create(testData.bookData2).then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
       },
       function (cb) {
-        Book2.create(testData.bookData3).then(success(cb), cb).then(ignore, end);
+        Book2.create(testData.bookData3).then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
       },
       function (cb) {
-        User3.create(testData.userData).then(success(cb), cb).then(ignore, end);
+        User3.create(testData.userData).then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
       },
       function (cb) {
-        User4.create(testData.userData2).then(success(cb), cb).then(ignore, end);
+        User4.create(testData.userData2).then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
       }
     ], function (err, results) {
       should.not.exist(err);
@@ -164,7 +148,7 @@ describe('Models', function () {
         doc.$getContext().should.equal(context[index]);
         doc.should.match(data[index]);
       });
-      end();
+      tp.end();
     });
   });
 
@@ -353,7 +337,6 @@ describe('Models', function () {
   });
 
   it('should produce context documents with Model.find() using exec() and promises', function (done) {
-    var isDone = false;
     async.waterfall([
       function (next) {
         async.parallel([
@@ -372,39 +355,23 @@ describe('Models', function () {
         ], next);
       },
       function (results, next) {
-        function ignore() {
-        }
-
-        function success(cb) {
-          return function (result) {
-            cb(null, result);
-          }
-        }
-
-        function end(err, results) {
-          if (!isDone) {
-            isDone = true;
-            next(err, results);
-          }
-        }
-
+        var tp = new TestPromise(next);
         async.parallel([
           function (cb) {
-            Book1.find({title: testData.bookData.title}).exec().then(success(cb), cb).then(ignore, end);
+            Book1.find({title: testData.bookData.title}).exec().then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
           },
           function (cb) {
-            Book2.find({title: testData.bookData.title}).exec().then(success(cb), cb).then(ignore, end);
+            Book2.find({title: testData.bookData.title}).exec().then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
           },
           function (cb) {
-            User3.find({firstName: testData.userData.firstName}).exec().then(success(cb), cb).then(ignore, end);
+            User3.find({firstName: testData.userData.firstName}).exec().then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
           },
           function (cb) {
-            User4.find({firstName: testData.userData.firstName}).exec().then(success(cb), cb).then(ignore, end);
+            User4.find({firstName: testData.userData.firstName}).exec().then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
           }
-        ], end);
+        ], tp.end);
       },
       function (results, next) {
-        isDone = false;
         results.length.should.equal(4);
         var context = [testData.context1, testData.context2, testData.context3, testData.context4];
         var data = [testData.bookData, testData.bookData, testData.userData, testData.userData]
@@ -663,7 +630,6 @@ describe('Models', function () {
   });
 
   it('should produce context documents with Model.findOne() using exec() and promises', function (done) {
-    var isDone = false;
     async.waterfall([
       function (next) {
         async.parallel([
@@ -682,39 +648,23 @@ describe('Models', function () {
         ], next);
       },
       function (results, next) {
-        function ignore() {
-        }
-
-        function success(cb) {
-          return function (result) {
-            cb(null, result);
-          }
-        }
-
-        function end(err, results) {
-          if (!isDone) {
-            isDone = true;
-            next(err, results);
-          }
-        }
-
+        var tp = new TestPromise(next);
         async.parallel([
           function (cb) {
-            Book1.findOne({_id: results[0]._id}).exec().then(success(cb), cb).then(ignore, end);
+            Book1.findOne({_id: results[0]._id}).exec().then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
           },
           function (cb) {
-            Book2.findOne({_id: results[1]._id}).exec().then(success(cb), cb).then(ignore, end);
+            Book2.findOne({_id: results[1]._id}).exec().then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
           },
           function (cb) {
-            User3.findOne({_id: results[2]._id}).exec().then(success(cb), cb).then(ignore, end);
+            User3.findOne({_id: results[2]._id}).exec().then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
           },
           function (cb) {
-            User4.findOne({_id: results[3]._id}).exec().then(success(cb), cb).then(ignore, end);
+            User4.findOne({_id: results[3]._id}).exec().then(tp.success(cb), tp.failure(cb)).then(tp.ignore, tp.end);
           }
-        ], end);
+        ], tp.end);
       },
       function (results, next) {
-        isDone = false;
         results.length.should.equal(4);
         var context = [testData.context1, testData.context2, testData.context3, testData.context4];
         results.forEach(function (doc, index) {
@@ -893,6 +843,7 @@ describe('Models', function () {
   });
 
   it('should produce context documents through Model.populate() and promises', function (done) {
+    var tp = new TestPromise();
     async.waterfall([
       function (next) {
         async.parallel([
@@ -925,32 +876,16 @@ describe('Models', function () {
         Reader1.find(next);
       },
       function (results, next) {
-        var isDone = false;
-
-        function ignore() {
-        }
-
-        function success() {
-          return function (result) {
-            next(null, result);
-          }
-        }
-
-        function end(err, results) {
-          if (!isDone) {
-            isDone = true;
-            next(err, results);
-          }
-        }
-
+        tp.done = next;
         results.forEach(function (reader) {
           reader.should.have.property('$getContext');
           reader.$getContext().should.equal(testData.context1);
         });
         var opts = [{path: 'user'}, {path: 'book'}];
-        Reader5.populate(results, opts).then(success(), next).then(ignore, end);
+        Reader5.populate(results, opts).then(tp.success(), tp.failure()).then(tp.ignore, tp.end);
       },
       function (results, next) {
+        tp.done  = next;
         results.forEach(function (reader) {
           reader.should.have.property('$getContext');
           reader.$getContext().should.equal(testData.context5);
