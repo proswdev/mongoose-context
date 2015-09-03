@@ -3,7 +3,7 @@
 var should = require('should');
 var mongoose = require('mongoose');
 var async = require('async');
-var mongooseContext = require('../index');
+var contexter = require('../index');
 var TestData = require('./testdata');
 
 describe('Subdocuments', function () {
@@ -13,9 +13,9 @@ describe('Subdocuments', function () {
   before(function (done) {
     conn = mongoose.createConnection('mongodb://localhost:27017/mongoose-context-test');
     testData = new TestData();
-    Book1 = conn.contextModel(testData.context1, 'Book', testData.bookSchema);
-    Lib2 = conn.contextModel(testData.context2, 'Lib', testData.libSchema);
-    Lib3 = conn.contextModel(testData.context3, 'Lib');
+    Book1 = contexter.model(testData.context1, conn, 'Book', testData.bookSchema);
+    Lib2 = contexter.model(testData.context2, conn, 'Lib', testData.libSchema);
+    Lib3 = contexter.model(testData.context3, conn, 'Lib');
     async.parallel([
       function (cb) {
         Book1.remove(cb);

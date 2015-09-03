@@ -2,10 +2,25 @@
 
 var mongoose = require('mongoose');
 var EventEmitter = require('events').EventEmitter;
-var contextEvents = new EventEmitter();
-module.exports = contextEvents;
 
-function contextualize(target, context) {
+var contexter = new EventEmitter();
+contexter.model = model;
+contexter.attach = attach;
+module.exports = contexter;
+
+function model(context, db, name, schema, collection, skipInit) {
+  var args,model;
+  if (typeof db === 'string') {
+    args = Array.prototype.slice.call(arguments, 1);
+    model = mongoose.model.apply(mongoose, args);
+  } else {
+    args = Array.prototype.slice.call(arguments, 2);
+    model = db.model.apply(db, args);
+  }
+  return model ? attach(context, model) : model;
+}
+
+function attach(context, target) {
 
   if (!target)
     return target;
@@ -32,7 +47,7 @@ function contextualize(target, context) {
   extTarget.$setContext = function (context) {
     if (__context !== context) {
       __context = context;
-      contextEvents.emit('contextChanged', extTarget);
+      contexter.emit('contextChanged', extTarget);
     }
   };
 
@@ -50,13 +65,13 @@ function contextualize(target, context) {
           break;
         case 'model':
           if (target instanceof mongoose.Query) {
-            extTarget.model = contextualize(target.model, __context);
+            extTarget.model = attach(__context, target.model);
           } else {
             extTarget.model = function () {
               var __method = target.model;
               return function () {
                 var model = __method.apply(target, arguments);
-                return contextualize(model, __context);
+                return attach(__context, model);
               };
             }();
           }
@@ -135,7 +150,7 @@ function contextualize(target, context) {
           extTarget[key] = function () {
             var __method = target[key];
             return function () {
-              return contextualize(__method.apply(target, arguments), __context);
+              return attach(__context, __method.apply(target, arguments));
             }
           }();
           break;
@@ -165,7 +180,7 @@ function contextualize(target, context) {
     }
   }
 
-  contextEvents.emit('contextualized', extTarget);
+  contexter.emit('contextualized', extTarget);
 
   return extTarget;
 
@@ -221,7 +236,7 @@ function contextualize(target, context) {
       }
       var query = __method.apply(target, args);
       if (query instanceof mongoose.Query)
-        query = contextualize(query, __context);
+        query = attach(__context, query);
       return query;
     }
   }
@@ -252,19 +267,19 @@ function instantiate(inst, context) {
     inst.$setContext = function (context) {
       if (__context !== context) {
         __context = context;
-        contextEvents.emit('contextChanged', inst);
+        contexter.emit('contextChanged', inst);
       }
     };
     if (typeof inst.model === 'function') {
       var __model = inst.model;
       inst.model = function () {
-        return contextualize(__model.apply(this, arguments), __context);
+        return attach(__context, __model.apply(this, arguments));
       };
     }
     if (typeof inst.update === 'function') {
       var __update = inst.update;
       inst.update = function () {
-        return contextualize(__update.apply(this, arguments), __context);
+        return attach(__context, __update.apply(this, arguments));
       }
     }
   }
@@ -275,22 +290,6 @@ function instantiate(inst, context) {
       })
   });
   if (__context)
-    contextEvents.emit('instantiated', inst);
+    contexter.emit('instantiated', inst);
   return inst;
 }
-
-var contextModel = function (context) {
-  var args = Array.prototype.slice.call(arguments, 1);
-  var model = this.model.apply(this, args);
-  return contextualize(model, context);
-};
-
-mongoose.contextModel = contextModel.bind(mongoose);
-
-var createConnection = mongoose.createConnection;
-mongoose.createConnection = function () {
-  var conn = createConnection.apply(mongoose, arguments);
-  conn.contextModel = contextModel.bind(conn);
-  return conn;
-};
-

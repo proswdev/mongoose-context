@@ -3,7 +3,7 @@
 var should = require('should');
 var mongoose = require('mongoose');
 var async = require('async');
-var mongooseContext = require('../index');
+var contexter = require('../index');
 var TestData = require('./testdata');
 var TestPromise = require('./testpromise');
 
@@ -14,12 +14,12 @@ describe('Models', function () {
   before(function (done) {
     conn = mongoose.createConnection('mongodb://localhost:27017/mongoose-context-test');
     testData = new TestData();
-    Book1 = conn.contextModel(testData.context1, 'Book', testData.bookSchema);
-    Book2 = conn.contextModel(testData.context2, 'Book');
-    User3 = conn.contextModel(testData.context3, 'User', testData.userSchema);
-    User4 = conn.contextModel(testData.context4, 'User');
-    Reader1 = conn.contextModel(testData.context1, 'Reader', testData.readerSchema);
-    Reader5 = conn.contextModel(testData.context5, 'Reader');
+    Book1 = contexter.model(testData.context1, conn, 'Book', testData.bookSchema);
+    Book2 = contexter.model(testData.context2, conn, 'Book');
+    User3 = contexter.model(testData.context3, conn, 'User', testData.userSchema);
+    User4 = contexter.model(testData.context4, conn, 'User');
+    Reader1 = contexter.model(testData.context1, conn, 'Reader', testData.readerSchema);
+    Reader5 = contexter.model(testData.context5, conn, 'Reader');
     async.parallel([
       function (cb) {
         Book1.remove(cb);
@@ -197,7 +197,7 @@ describe('Models', function () {
   });
 
   it('should be able to change context without affecting others', function (done) {
-    var BookX = conn.contextModel(testData.context1, 'Book', testData.bookSchema);
+    var BookX = contexter.model(testData.context1, conn, 'Book', testData.bookSchema);
     async.waterfall([
       function (next) {
         async.parallel([

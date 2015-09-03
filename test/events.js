@@ -3,7 +3,7 @@
 var should = require('should');
 var mongoose = require('mongoose');
 var async = require('async');
-var mongooseContext = require('../index');
+var contexter = require('../index');
 var TestData = require('./testdata');
 
 describe('Events', function () {
@@ -27,8 +27,8 @@ describe('Events', function () {
     async.waterfall([
       function (next) {
         objects = [];
-        mongooseContext.on('contextualized', logEvent);
-        Book1 = conn.contextModel(testData.context1, 'Book', testData.bookSchema);
+        contexter.on('contextualized', logEvent);
+        Book1 = contexter.model(testData.context1, conn, 'Book', testData.bookSchema);
         Book1.find(function () {
           next();
         });
@@ -47,7 +47,7 @@ describe('Events', function () {
       },
       function (next) {
         objects = [];
-        Book2 = conn.contextModel(testData.context2, 'Book', testData.bookSchema);
+        Book2 = contexter.model(testData.context2, conn, 'Book', testData.bookSchema);
         Book2.find(function () {
           next();
         });
@@ -62,7 +62,7 @@ describe('Events', function () {
             queries++;
         });
         queries.should.be.within(1, objects.length - 1);
-        mongooseContext.removeListener('contextualized', logEvent);
+        contexter.removeListener('contextualized', logEvent);
         next();
       }
     ], done);
@@ -73,9 +73,9 @@ describe('Events', function () {
     async.waterfall([
       function (next) {
         objects = [];
-        mongooseContext.on('instantiated', logEvent);
-        Book1 = conn.contextModel(testData.context1, 'Book', testData.bookSchema);
-        Book2 = conn.contextModel(testData.context1, 'Book');
+        contexter.on('instantiated', logEvent);
+        Book1 = contexter.model(testData.context1, conn, 'Book', testData.bookSchema);
+        Book2 = contexter.model(testData.context1, conn, 'Book');
         objects.length.should.equal(0);
         var book1 = new Book1(testData.bookData);
         objects.length.should.equal(1);
@@ -114,7 +114,7 @@ describe('Events', function () {
           obj.should.have.property('$getContext');
           obj.$getContext().should.equal(testData.context1);
         });
-        mongooseContext.removeListener('instantiated', logEvent);
+        contexter.removeListener('instantiated', logEvent);
         next();
       }
     ], done);
@@ -122,8 +122,8 @@ describe('Events', function () {
 
   it('should emit contextChanged events for context changes', function (done) {
     objects = [];
-    mongooseContext.on('contextChanged', logEvent);
-    var BookX = conn.contextModel(testData.context1, 'Book', testData.bookSchema);
+    contexter.on('contextChanged', logEvent);
+    var BookX = contexter.model(testData.context1, conn, 'Book', testData.bookSchema);
     objects.length.should.equal(0);
     var bookX = new BookX(testData.bookData);
     objects.length.should.equal(0);

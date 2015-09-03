@@ -3,7 +3,7 @@
 var should = require('should');
 var mongoose = require('mongoose');
 var async = require('async');
-var mongooseContext = require('../index');
+var contexter = require('../index');
 var TestData = require('./testdata');
 
 describe('Middleware', function () {
@@ -49,8 +49,8 @@ describe('Middleware', function () {
     testData = new TestData();
     var schema = mongoose.Schema(testData.bookSchemaData);
     setFilters(schema);
-    Book1 = conn.contextModel(testData.context1, 'Book', schema);
-    Book2 = conn.contextModel(testData.context2, 'Book');
+    Book1 = contexter.model(testData.context1, conn, 'Book', schema);
+    Book2 = contexter.model(testData.context2, conn, 'Book');
     done();
   });
 

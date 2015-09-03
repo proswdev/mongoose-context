@@ -2,8 +2,7 @@
 
 var should = require('should');
 var mongoose = require('mongoose');
-var async = require('async');
-var mongooseContext = require('../index');
+var contexter = require('../index');
 var TestData = require('./testdata');
 
 describe('Mongoose', function () {
@@ -28,10 +27,12 @@ describe('Mongoose', function () {
     });
 
     it('should be able to create model with context', function (done) {
-      var Book1 = mongoose.contextModel(testData.context1, 'Book', testData.bookSchema);
-      var Book2 = mongoose.contextModel(testData.context2, 'Book');
-      var User1 = mongoose.contextModel(testData.context1, 'User', testData.userSchema);
-      var User2 = mongoose.contextModel(testData.context3, 'User');
+      var Book = mongoose.model('Book', testData.bookSchema);
+      var Book1 = contexter.attach(testData.context1, Book);
+      var Book2 = contexter.model(testData.context2, 'Book');
+      var User1 = contexter.model(testData.context1, 'User', testData.userSchema);
+      var User =  mongoose.model('User');
+      var User2 = contexter.attach(testData.context3, User);
       Book1.should.have.property('$getContext');
       Book1.$getContext().should.equal(testData.context1);
       Book2.should.have.property('$getContext');
@@ -60,7 +61,7 @@ describe('Mongoose', function () {
 
     it('should be able to create normal model without context', function (done) {
       var Book = conn.model('Book', testData.bookSchema);
-      Book.should.not.have.property('context');
+      Book.should.not.have.property('$getContext');
       Book.create(testData.bookData, function (err, book) {
         should.not.exist(err);
         should.exist(book);
@@ -69,10 +70,12 @@ describe('Mongoose', function () {
     });
 
     it('should be able to create model with context', function (done) {
-      var Book1 = conn.contextModel(testData.context1, 'Book', testData.bookSchema);
-      var Book2 = conn.contextModel(testData.context2, 'Book');
-      var User1 = conn.contextModel(testData.context1, 'User', testData.userSchema);
-      var User2 = conn.contextModel(testData.context3, 'User');
+      var Book = conn.model('Book', testData.bookSchema);
+      var Book1 = contexter.attach(testData.context1, Book);
+      var Book2 = contexter.model(testData.context2, conn, 'Book');
+      var User1 = contexter.model(testData.context1, conn, 'User', testData.userSchema);
+      var User =  conn.model('User');
+      var User2 = contexter.attach(testData.context3, User);
       Book1.should.have.property('$getContext');
       Book1.$getContext().should.equal(testData.context1);
       Book2.should.have.property('$getContext');
