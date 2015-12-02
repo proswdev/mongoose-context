@@ -1,7 +1,7 @@
 {
   "name": "mongoose-context",
   "version": "0.0.1",
-  "description": "Attach contexts to Mongoose models and instances",
+  "description": "Object inheritance for mongoose connections, models and documents",
   "main": "index.js",
   "scripts": {
     "test": "/usr/lib/node_modules/mocha"
@@ -10,7 +10,20 @@
     "type": "git",
     "url": "https://github.com/proswdev/mongoose-context.git"
   },
-  "keywords": [],
+  "keywords": [
+    "mongoose",
+    "context",
+    "inheritance",
+    "express",
+    "expressJS",
+    "instance",
+    "request",
+    "response",
+    "middleware",
+    "filter",
+    "document",
+    "event"
+  ],
   "author": "Eric Vandewater <ericv@prosoftwaredev.com>",
   "license": "MIT",
   "bugs": {
@@ -18,7 +31,7 @@
   },
   "homepage": "https://github.com/proswdev/mongoose-context",
   "dependencies": {
-    "mongoose": ">=3.8.0 <4.2.0"
+    "mongoose": ">=3.8.0 <4.3.0"
   },
   "devDependencies": {
     "async": "^1.4.0",

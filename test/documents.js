@@ -13,6 +13,8 @@ describe('Documents', function () {
   var conn, testData, Book1, Book2, User3, User4, Reader1, Reader5;
 
   before(function (done) {
+    var mongoose1 = new mongoose.Mongoose();
+    mongoose1.testData = { var1: 123, var2: 'abc' };
     conn = mongoose.createConnection('mongodb://localhost:27017/mongoose-context-test');
     testData = new TestData();
     Book1 = contexter.model(testData.context1, conn, 'Book', testData.bookSchema);

@@ -26,6 +26,19 @@ describe('Mongoose', function () {
       });
     });
 
+    it ('should be able to attach context to mongoose instance', function(done) {
+      var instance = contexter.mongoose(testData.context1);
+      instance.should.have.property('$getContext');
+      instance.$getContext().should.equal(testData.context1);
+      var Book1 = instance.model('Book', testData.bookSchema);
+      Book1.should.have.property('$getContext');
+      Book1.$getContext().should.equal(testData.context1);
+      Book1.$setContext(testData.context2);
+      instance.$getContext().should.equal(testData.context1);
+      Book1.$getContext().should.equal(testData.context2);
+      done();
+    });
+
     it('should be able to create model with context', function (done) {
       var Book = mongoose.model('Book', testData.bookSchema);
       var Book1 = contexter.attach(testData.context1, Book);
@@ -67,6 +80,20 @@ describe('Mongoose', function () {
         should.exist(book);
         done();
       });
+    });
+
+    it ('should be able to attach context to mongoose instance', function(done) {
+      var instance = contexter.mongoose(testData.context1);
+      instance.should.have.property('$getContext');
+      instance.$getContext().should.equal(testData.context1);
+      var conn = instance.createConnection('mongodb://localhost:27017/mongoose-context-test');
+      var Book1 = conn.model('Book', testData.bookSchema);
+      Book1.should.have.property('$getContext');
+      Book1.$getContext().should.equal(testData.context1);
+      Book1.$setContext(testData.context2);
+      instance.$getContext().should.equal(testData.context1);
+      Book1.$getContext().should.equal(testData.context2);
+      conn.close(done);
     });
 
     it('should be able to create model with context', function (done) {

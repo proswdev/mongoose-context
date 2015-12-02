@@ -20,7 +20,7 @@ describe('Events', function () {
 
   function logEvent(obj) {
     objects.push(obj);
-  };
+  }
 
   it('should emit contextualized events for new models and queryies', function (done) {
     var Book1, Book2;
