@@ -4,6 +4,7 @@ var should = require('should');
 var mongoose = require('mongoose');
 var async = require('async');
 var contexter = require('../index');
+var semver = require('semver');
 var TestData = require('./testdata');
 var TestPromise = require('./testpromise');
 
@@ -1108,34 +1109,67 @@ describe('Models', function () {
     ], done);
   });
 
-  it('should produce context documents using QueryStreams', function (done) {
-    async.waterfall([
-      function (next) {
-        async.parallel([
-          function (cb) {
-            Book1.create(testData.bookData, cb);
-          },
-          function (cb) {
-            Book1.create(testData.bookData, cb);
-          },
-          function (cb) {
-            Book1.create(testData.bookData, cb);
-          },
-          function (cb) {
-            Book1.create(testData.bookData, cb);
-          }
-        ], next);
-      },
-      function (results, next) {
-        var stream = Book2.find().stream();
-        stream.on('data', function (book) {
-          book.should.have.property('$getContext');
-          book.$getContext().should.equal(testData.context2);
-        });
-        stream.on('close', next);
-      }
-    ], done);
-  });
+  if (semver.gte(mongoose.version, "4.5.0")) {
+    // Mongoose version >= 4.5 deprecated query streams and replaced with cursors
+    it('should produce context documents using cursors', function (done) {
+      async.waterfall([
+        function (next) {
+          async.parallel([
+            function (cb) {
+              Book1.create(testData.bookData, cb);
+            },
+            function (cb) {
+              Book1.create(testData.bookData, cb);
+            },
+            function (cb) {
+              Book1.create(testData.bookData, cb);
+            },
+            function (cb) {
+              Book1.create(testData.bookData, cb);
+            }
+          ], next);
+        },
+        function (results, next) {
+          var stream = Book2.find().cursor();
+          stream.on('data', function (book) {
+            book.should.have.property('$getContext');
+            book.$getContext().should.equal(testData.context2);
+          });
+          stream.on('close', next);
+        }
+      ], done);
+    });
+  } else {
+    // Mongoose version < 4.5 uses query streams
+    it('should produce context documents using QueryStreams', function (done) {
+      async.waterfall([
+        function (next) {
+          async.parallel([
+            function (cb) {
+              Book1.create(testData.bookData, cb);
+            },
+            function (cb) {
+              Book1.create(testData.bookData, cb);
+            },
+            function (cb) {
+              Book1.create(testData.bookData, cb);
+            },
+            function (cb) {
+              Book1.create(testData.bookData, cb);
+            }
+          ], next);
+        },
+        function (results, next) {
+          var stream = Book2.find().stream();
+          stream.on('data', function (book) {
+            book.should.have.property('$getContext');
+            book.$getContext().should.equal(testData.context2);
+          });
+          stream.on('close', next);
+        }
+      ], done);
+    });
+  }
 
   after(function (done) {
     conn.close(done);

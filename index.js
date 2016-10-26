@@ -2,6 +2,7 @@
 
 var mongoose = require('mongoose');
 var EventEmitter = require('events').EventEmitter;
+var Promise = require('bluebird');
 
 // Setup contexter
 var contexter = new EventEmitter();
@@ -254,18 +255,18 @@ function attach(context, target) {
       }
       // Insert custom callback and promise to attach context to returned results
       // before passing data on to original caller
-      var __promise = new mongoose.Promise;
+      var __deferred = Promise.defer();
       args.push(function () {
         if (this)
           this.$getContext = extTarget.$getContext;
         addContext(arguments);
         if (cb)
           cb.apply(this, arguments);
-        __promise.resolve.apply(__promise, arguments);
+        __deferred.resolve.apply(__deferred, Array.prototype.slice.call(arguments,1));
       });
       // Invoke original method
       __method.apply(__target, args);
-      return __promise;
+      return __deferred.promise;
     }
   }
 

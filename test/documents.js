@@ -7,6 +7,7 @@ var semver = require('semver');
 var contexter = require('../index');
 var TestData = require('./testdata');
 var TestPromise = require('./testpromise');
+mongoose.Promise = require('bluebird');
 
 describe('Documents', function () {
 
